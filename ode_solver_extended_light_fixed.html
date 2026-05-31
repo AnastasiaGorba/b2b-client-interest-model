@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Застосунок для аналізу зацікавленості клієнта</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 24px; }
+  @media (prefers-color-scheme: impossible-disabled-dark-mode) {
+    body { background: #1a1a1a; color: #e0e0e0; }
+    .ctrl-group, .stat, .eq-box, .info-pill { background: #2a2a2a !important; border-color: #3a3a3a !important; }
+    .tab-btn { border-color: #3a3a3a !important; color: #aaa !important; }
+    .tab-btn.active { background: #2a2a2a !important; color: #e0e0e0 !important; border-color: #555 !important; }
+    button:not(.tab-btn) { background: transparent; border-color: #444; color: #e0e0e0; }
+    button:not(.tab-btn):hover { background: #2a2a2a; }
+    label { color: #aaa !important; }
+  }
+
+  .app-wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
+
+  .tab-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab-btn { flex: 1; padding: 9px 0; font-size: 12px; font-weight: 500; border: 1px solid #ccc; border-radius: 8px; background: transparent; color: #666; cursor: pointer; transition: all .15s; }
+  .tab-btn.active { background: #f0efff; color: #3a33a0; border-color: #7f77dd; }
+  .tab-btn:hover:not(.active) { background: #f9f9f9; }
+
+  .eq-box { font-size: 13px; color: #555; background: #f0f0f0; border-radius: 8px; padding: 9px 13px; font-family: 'Courier New', monospace; line-height: 1.8; margin-bottom: 14px; border: 1px solid #ddd; }
+
+  .panel { display: grid; grid-template-columns: 250px 1fr; gap: 16px; }
+  @media (max-width: 680px) { .panel { grid-template-columns: 1fr; } }
+
+  .controls { display: flex; flex-direction: column; gap: 8px; }
+  .ctrl-group { background: #f8f8f8; border-radius: 8px; padding: 9px 12px; border: 1px solid #e0e0e0; }
+  .ctrl-group label { font-size: 11.5px; color: #666; display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .ctrl-group label span { font-weight: 600; color: #1a1a1a; }
+  .ctrl-group input[type=range] { width: 100%; cursor: pointer; }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row button { flex: 1; font-size: 13px; padding: 8px 0; border: 1px solid #ccc; border-radius: 8px; background: transparent; cursor: pointer; transition: all .15s; }
+  .btn-row button:hover { background: #f0f0f0; }
+  .btn-row button:active { transform: scale(0.97); }
+
+  .info-pill { font-size: 11px; color: #777; background: #f0f0f0; border-radius: 8px; padding: 5px 10px; text-align: center; border: 1px solid #ddd; font-family: monospace; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+  .stat { background: #f8f8f8; border-radius: 8px; padding: 8px 10px; border: 1px solid #e0e0e0; }
+  .stat-label { font-size: 11px; color: #888; }
+  .stat-val { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+
+  .legend-row { display: flex; gap: 14px; font-size: 11px; color: #777; align-items: center; margin-bottom: 8px; }
+  .leg-line { width: 22px; height: 2px; border-radius: 1px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="app-wrap">
+  <h1>Застосунок для аналізу зацікавленості клієнта</h1>
+  <p class="subtitle">Інтерактивне дослідження лінійної, нелінійної та керованої моделей процесу залучення клієнтів</p>
+
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab-sin">⟿ Нелінійна: сезонність</button>
+    <button class="tab-btn" id="tab-imp">⚡ Нелінійна: імпульс</button>
+    <button class="tab-btn" id="tab-lin">ƒ Лінійна модель</button>
+    <button class="tab-btn" id="tab-opt">◎ Оптимальне керування</button>
+  </div>
+
+  <div class="eq-box" id="eq-display">x′ = −ax + bx(1−x) + C·sin(ωt)</div>
+
+  <div class="panel">
+    <div class="controls" id="controls-area"></div>
+    <div>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">x(T)</div><div class="stat-val" id="st-xT">—</div></div>
+        <div class="stat"><div class="stat-label">x мін</div><div class="stat-val" id="st-min">—</div></div>
+        <div class="stat"><div class="stat-label">x макс</div><div class="stat-val" id="st-max">—</div></div>
+        <div class="stat"><div class="stat-label">N кроків</div><div class="stat-val" id="st-N">—</div></div>
+      </div>
+      <div class="legend-row" id="legend-area"></div>
+      <div style="position:relative;width:100%;height:210px;">
+        <canvas id="chart-main" role="img" aria-label="Графік розв'язку x(t)"></canvas>
+      </div>
+      <div style="position:relative;width:100%;height:150px;margin-top:10px;">
+        <canvas id="chart-phase" role="img" aria-label="Фазовий портрет x проти x′"></canvas>
+      </div>
+      <div class="info-pill" id="info-step" style="margin-top:8px;">h = —</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = false;
+const C_PUR = isDark ? '#8f87e8' : '#534AB7';
+const C_RED = isDark ? '#e05c4b' : '#c0392b';
+const C_GRY = isDark ? '#888' : '#999';
+const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tickC = isDark ? '#888' : '#888';
+
+const MODES = {
+  sin: {
+    eq: 'Нелінійна модель: x′ = −αx + Bx(1−x) + A·sin(ωt)',
+    sliders: [
+      {id:'a',label:'α (втрата інтересу)',min:0,max:1,step:0.01,val:0.4,dec:2},
+      {id:'B',label:'B (вплив SDR)',min:0,max:1.5,step:0.01,val:0.8,dec:2},
+      {id:'A',label:'A (амплітуда)',min:0,max:1,step:0.01,val:0.2,dec:2},
+      {id:'w',label:'ω (частота)',min:0.1,max:10,step:0.1,val:1.0,dec:2},
+      {id:'x0',label:'x₀ (початкова умова)',min:0,max:1,step:0.01,val:0.3,dec:2},
+      {id:'T',label:'T (горизонт часу)',min:5,max:60,step:1,val:20,dec:0},
+      {id:'ppp',label:'Кроків на період',min:10,max:200,step:5,val:40,dec:0},
+    ]
+  },
+  imp: {
+    eq: 'Нелінійна модель: x′ = −αx + Bx(1−x) + A·e^(−δ(t−t₀))·H(t−t₀)',
+    sliders: [
+      {id:'a',label:'α (втрата інтересу)',min:0,max:1,step:0.01,val:0.4,dec:2},
+      {id:'B',label:'B (вплив SDR)',min:0,max:1.5,step:0.01,val:0.8,dec:2},
+      {id:'A',label:'A (амплітуда імпульсу)',min:0,max:1,step:0.01,val:0.4,dec:2},
+      {id:'d',label:'δ (швидкість згасання)',min:0,max:2,step:0.01,val:0.3,dec:2},
+      {id:'t0',label:'t₀ (момент події)',min:0.1,max:30,step:0.1,val:5.0,dec:2},
+      {id:'x0',label:'x₀ (початкова умова)',min:0,max:1,step:0.01,val:0.3,dec:2},
+      {id:'T',label:'T (горизонт часу)',min:5,max:80,step:1,val:20,dec:0},
+      {id:'Nk',label:'N кроків (×1000)',min:1,max:20,step:1,val:4,dec:0},
+    ]
+  },
+  lin: {
+    eq: 'Лінійна модель: x′ = −αx + βu(1−x),  x(t) за формулою (15)',
+    sliders: [
+      {id:'a',label:'α (втрата інтересу)',min:0,max:1.5,step:0.01,val:0.4,dec:2},
+      {id:'b',label:'β (ефективність SDR)',min:0,max:1.5,step:0.01,val:0.8,dec:2},
+      {id:'u',label:'u (стале керування)',min:0,max:1.5,step:0.01,val:0.7,dec:2},
+      {id:'x0',label:'x₀ (початкова умова)',min:0,max:1,step:0.01,val:0.3,dec:2},
+      {id:'T',label:'T (горизонт часу)',min:5,max:80,step:1,val:20,dec:0},
+      {id:'N',label:'N точок',min:100,max:2000,step:50,val:800,dec:0},
+    ]
+  },
+  opt: {
+    eq: 'Оптимальне керування: x′ = −αx + β(1−x) + u(t),  J = γx(T)+∫(Rx−cu²)dt',
+    sliders: [
+      {id:'a',label:'α (втрата інтересу)',min:0,max:1.5,step:0.01,val:0.4,dec:2},
+      {id:'b',label:'β (внутрішній вплив)',min:0,max:1.5,step:0.01,val:0.6,dec:2},
+      {id:'R',label:'R (дохід від інтересу)',min:0,max:5,step:0.05,val:1.0,dec:2},
+      {id:'c',label:'c (вартість керування)',min:0.1,max:5,step:0.05,val:1.0,dec:2},
+      {id:'g',label:'γ (важливість x(T))',min:0,max:5,step:0.05,val:1.0,dec:2},
+      {id:'x0',label:'x₀ (початкова умова)',min:0,max:1,step:0.01,val:0.3,dec:2},
+      {id:'T',label:'T (горизонт часу)',min:5,max:80,step:1,val:20,dec:0},
+      {id:'N',label:'N кроків',min:200,max:4000,step:100,val:1200,dec:0},
+    ]
+  }
+};
+let mode = 'sin';
+let params = {};
+
+function getDefaults(m) {
+  const out = {};
+  MODES[m].sliders.forEach(s => out[s.id] = s.val);
+  return out;
+}
+
+function buildControls(m) {
+  params = getDefaults(m);
+  const area = document.getElementById('controls-area');
+  area.innerHTML = '';
+  MODES[m].sliders.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'ctrl-group';
+    d.innerHTML = `<label>${s.label} <span id="v-${s.id}">${s.val.toFixed(s.dec)}</span></label>
+      <input type="range" id="s-${s.id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.val}">`;
+    area.appendChild(d);
+    d.querySelector('input').addEventListener('input', e => {
+      params[s.id] = parseFloat(e.target.value);
+      document.getElementById('v-'+s.id).textContent = params[s.id].toFixed(s.dec);
+    });
+  });
+  const btnRow = document.createElement('div');
+  btnRow.className = 'btn-row';
+  btnRow.innerHTML = `<button id="btn-run">▶ Запустити</button>
+    <button id="btn-reset">↺ Скинути</button>`;
+  area.appendChild(btnRow);
+  document.getElementById('btn-run').addEventListener('click', runSim);
+  document.getElementById('btn-reset').addEventListener('click', () => { buildControls(mode); runSim(); });
+
+  document.getElementById('eq-display').textContent = MODES[m].eq;
+
+  const leg = document.getElementById('legend-area');
+  if(m === 'imp') {
+    leg.innerHTML = `<span><span class="leg-line" style="background:${C_PUR};"></span> x(t)</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:22px;border-top:2px dashed ${C_RED};display:inline-block;"></span> збурення f(t)</span>`;
+  } else if(m === 'opt') {
+    leg.innerHTML = `<span><span class="leg-line" style="background:${C_PUR};"></span> x(t)</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:22px;border-top:2px dashed ${C_RED};display:inline-block;"></span> u(t)</span>`;
+  } else {
+    leg.innerHTML = `<span><span class="leg-line" style="background:${C_PUR};"></span> x(t)</span>`;
+  }
+}
+
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+function rk4_sin(p) {
+  const {a,B,A,w,x0,T,ppp} = p;
+  const h = (2*Math.PI/w) / ppp;
+  const N = Math.ceil(T/h);
+  const hA = T/N;
+  const f = (t,x) => -a*x + B*x*(1-x) + A*Math.sin(w*t);
+  const ts=[0],xs=[x0],dxs=[f(0,x0)];
+  let t=0,x=x0;
+  for(let i=0;i<N;i++){
+    const k1=f(t,x),k2=f(t+hA/2,x+hA*k1/2),k3=f(t+hA/2,x+hA*k2/2),k4=f(t+hA,x+hA*k3);
+    x+=hA*(k1+2*k2+2*k3+k4)/6; t+=hA;
+    ts.push(+t.toFixed(6)); xs.push(x); dxs.push(f(t,x));
+  }
+  return {ts,xs,dxs,fs:null,N,h:hA,modeInfo:'Чисельний метод Рунге-Кутти 4-го порядку'};
+}
+
+function rk4_imp(p) {
+  const {a,B,A,d,t0,x0,T,Nk} = p;
+  const Nsteps = Nk*1000;
+  const h = T/Nsteps;
+  const forcing = (t) => t>=t0 ? A*Math.exp(-d*(t-t0)) : 0;
+  const f = (t,x) => -a*x + B*x*(1-x) + forcing(t);
+  const ts=[0],xs=[x0],dxs=[f(0,x0)],fs=[0];
+  let t=0,x=x0;
+  for(let i=0;i<Nsteps;i++){
+    const tN=t+h;
+    if(t<t0 && tN>t0){
+      const ha=t0-t;
+      const k1=f(t,x),k2=f(t+ha/2,x+ha*k1/2),k3=f(t+ha/2,x+ha*k2/2),k4=f(t0,x+ha*k3);
+      x+=ha*(k1+2*k2+2*k3+k4)/6; t=t0;
+      const hb=tN-t0;
+      if(hb>1e-12){const k1b=f(t,x),k2b=f(t+hb/2,x+hb*k1b/2),k3b=f(t+hb/2,x+hb*k2b/2),k4b=f(t+hb,x+hb*k3b);x+=hb*(k1b+2*k2b+2*k3b)/6+hb*k4b/6;t=tN;}
+    } else {
+      const k1=f(t,x),k2=f(t+h/2,x+h*k1/2),k3=f(t+h/2,x+h*k2/2),k4=f(t+h,x+h*k3);
+      x+=h*(k1+2*k2+2*k3+k4)/6; t=tN;
+    }
+    ts.push(+t.toFixed(6)); xs.push(x); dxs.push(f(t,x)); fs.push(forcing(t));
+  }
+  return {ts,xs,dxs,fs,N:Nsteps,h,modeInfo:'Чисельний метод Рунге-Кутти 4-го порядку'};
+}
+
+function analytical_linear(p) {
+  const {a,b,u,x0,T,N} = p;
+  const k = b*u + a;
+  const xeq = (b*u) / k;
+  const ts=[],xs=[],dxs=[];
+  for(let i=0;i<=N;i++){
+    const t = T*i/N;
+    const x = (x0 - xeq)*Math.exp(-k*t) + xeq;
+    ts.push(+t.toFixed(6)); xs.push(x); dxs.push(-a*x + b*u*(1-x));
+  }
+  return {ts,xs,dxs,fs:null,N,h:T/N,modeInfo:`x* = ${xeq.toFixed(4)}`};
+}
+
+function optimal_control(p) {
+  const {a,b,R,c,g,x0,T,N} = p;
+  const k = a + b;
+  const pAdj = (t) => R/k + (g - R/k)*Math.exp(-k*(T-t));
+  const uOpt = (t) => Math.max(0, pAdj(t)/(2*c));
+  const f = (t,x) => -a*x + b*(1-x) + uOpt(t);
+  const ts=[0],xs=[x0],dxs=[f(0,x0)],us=[uOpt(0)];
+  const h = T/N;
+  let t=0,x=x0;
+  for(let i=0;i<N;i++){
+    const k1=f(t,x),k2=f(t+h/2,x+h*k1/2),k3=f(t+h/2,x+h*k2/2),k4=f(t+h,x+h*k3);
+    x += h*(k1+2*k2+2*k3+k4)/6; t += h;
+    ts.push(+t.toFixed(6)); xs.push(x); dxs.push(f(t,x)); us.push(uOpt(t));
+  }
+  return {ts,xs,dxs,fs:us,N,h,modeInfo:'u(t)=p(t)/(2c), p(T)=γ'};
+}
+
+const chartMain = new Chart(document.getElementById('chart-main').getContext('2d'), {
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'x(t)',data:[],borderColor:C_PUR,borderWidth:2,pointRadius:0,tension:0.3,yAxisID:'yx'},
+    {label:'f(t)',data:[],borderColor:C_RED,borderWidth:1.5,pointRadius:0,tension:0,borderDash:[5,4],yAxisID:'yf',hidden:true}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{title:{display:true,text:'t',color:tickC},ticks:{color:tickC,maxTicksLimit:10},grid:{color:gridC}},
+      yx:{title:{display:true,text:'x(t)',color:C_PUR},ticks:{color:C_PUR},position:'left',grid:{color:gridC}},
+      yf:{title:{display:true,text:'f(t)',color:C_RED},ticks:{color:C_RED},position:'right',grid:{drawOnChartArea:false},display:false}
+    }
+  }
+});
+
+const chartPhase = new Chart(document.getElementById('chart-phase').getContext('2d'), {
+  type:'scatter',
+  data:{datasets:[
+    {label:'до t₀',data:[],borderColor:C_GRY,backgroundColor:C_GRY,pointRadius:1,showLine:true},
+    {label:'після t₀',data:[],borderColor:C_PUR,backgroundColor:C_PUR,pointRadius:1,showLine:true}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{display:true,labels:{color:tickC,boxWidth:12,font:{size:11}}}},
+    scales:{
+      x:{title:{display:true,text:'x',color:tickC},ticks:{color:tickC},grid:{color:gridC}},
+      y:{title:{display:true,text:"x′",color:tickC},ticks:{color:tickC},grid:{color:gridC}}
+    }
+  }
+});
+
+function runSim() {
+  let res;
+  if(mode === 'sin') res = rk4_sin(params);
+  else if(mode === 'imp') res = rk4_imp(params);
+  else if(mode === 'lin') res = analytical_linear(params);
+  else res = optimal_control(params);
+  const {ts,xs,dxs,fs,N,h,modeInfo} = res;
+
+  const maxPts=700, step=Math.max(1,Math.floor(ts.length/maxPts));
+  const tSub=[],xSub=[],fSub=[],phaseBefore=[],phaseAfter=[];
+  const t0ref = mode==='imp' ? params.t0 : Infinity;
+
+  for(let i=0;i<ts.length;i+=step){
+    tSub.push(ts[i].toFixed(3));
+    xSub.push(+xs[i].toFixed(5));
+    if(fs) fSub.push(+fs[i].toFixed(5));
+    const pt={x:+xs[i].toFixed(5),y:+dxs[i].toFixed(5)};
+    if(ts[i]<t0ref) phaseBefore.push(pt); else phaseAfter.push(pt);
+  }
+
+  chartMain.data.labels = tSub;
+  chartMain.data.datasets[0].data = xSub;
+  if(mode==='imp' || mode==='opt'){
+    chartMain.data.datasets[1].data = fSub;
+    chartMain.data.datasets[1].label = mode==='opt' ? 'u(t)' : 'f(t)';
+    chartMain.data.datasets[1].hidden = false;
+    chartMain.options.scales.yf.display = true;
+    chartMain.options.scales.yf.title.text = mode==='opt' ? 'u(t)' : 'f(t)';
+  } else {
+    chartMain.data.datasets[1].data = [];
+    chartMain.data.datasets[1].hidden = true;
+    chartMain.options.scales.yf.display = false;
+  }
+  chartMain.update();
+
+  if(mode==='imp'){
+    chartPhase.data.datasets[0].data = phaseBefore;
+    chartPhase.data.datasets[1].data = phaseAfter;
+    chartPhase.data.datasets[0].label = 'до t₀';
+    chartPhase.data.datasets[1].label = 'після t₀';
+    chartPhase.options.plugins.legend.display = true;
+    chartPhase.options.scales.x.title.text = 'x';
+    chartPhase.options.scales.y.title.text = "x′";
+  } else {
+    chartPhase.data.datasets[0].data = [];
+    chartPhase.data.datasets[1].data = [];
+    for(let i=0;i<ts.length;i+=step){
+      chartPhase.data.datasets[1].data.push({x:+xs[i].toFixed(5),y:+dxs[i].toFixed(5)});
+    }
+    chartPhase.data.datasets[1].label = mode==='opt' ? 'фазова траєкторія з u(t)' : 'фазова траєкторія';
+    chartPhase.options.plugins.legend.display = false;
+    chartPhase.options.scales.x.title.text = 'x';
+    chartPhase.options.scales.y.title.text = "x′";
+  }
+  chartPhase.update();
+
+  const xEnd=xs[xs.length-1], xMin=Math.min(...xs), xMax=Math.max(...xs);
+  document.getElementById('st-xT').textContent = xEnd.toFixed(4);
+  document.getElementById('st-min').textContent = xMin.toFixed(4);
+  document.getElementById('st-max').textContent = xMax.toFixed(4);
+  document.getElementById('st-N').textContent = N;
+  const T_period = mode==='sin' ? (2*Math.PI/params.w).toFixed(3) : '—';
+  let extra = '';
+  if(mode==='sin') extra = `  |  T_period = ${T_period}`;
+  else if(mode==='imp') extra = `  |  t₀ = ${params.t0?.toFixed(2)}`;
+  else extra = `  |  ${modeInfo}`;
+  document.getElementById('info-step').textContent = `h = ${h.toFixed(5)}${extra}`;
+}
+
+function setMode(newMode) {
+  mode = newMode;
+  ['sin','imp','lin','opt'].forEach(m => {
+    document.getElementById('tab-'+m).classList.toggle('active', m===newMode);
+  });
+  buildControls(newMode);
+  runSim();
+}
+
+document.getElementById('tab-sin').addEventListener('click', () => setMode('sin'));
+document.getElementById('tab-imp').addEventListener('click', () => setMode('imp'));
+document.getElementById('tab-lin').addEventListener('click', () => setMode('lin'));
+document.getElementById('tab-opt').addEventListener('click', () => setMode('opt'));
+
+buildControls('sin');
+runSim();
+</script>
+</body>
+</html>
